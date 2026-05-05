@@ -43,56 +43,66 @@ void print(H h, T ... t) { pt_s(h); if(sizeof ... (t)) pt_s(' '); print(t ...); 
 #define ULL(...) ull __VA_ARGS__; read(__VA_ARGS__)
 #define STR(...) string __VA_ARGS__; read(__VA_ARGS__)
 #define CHAR(...) char __VA_ARGS__; read(__VA_ARGS__)
-const int N = 1e6 + 5;
-int n, a[N], b[N];
-int pre[N], nxt[N], s[N];
-bool f[N][5];
-int ans[N];
-bool check(int l, int r, int x) {
-	if(l < 1) return 0;
-	int R = pre[r], L = nxt[l];
-	if(R < l) return 1;
-	if(a[R] != x || a[L] != x) return 0;
-	return s[R] - s[L] == 0;
-}
+#define popcount __builtin_popcount
+const int N = 1e5 + 5;
+const ll LNF = 1e18;
+int n, m, s[N], pc[N];
+string A[N], B[N];
+ll dp[2][1 << 6];
 void solve() {
-	read(n);
-	FOR(i, 1, n) read(a[i]);
-	FOR(i, 1, n) pre[i] = a[i] ? i : pre[i - 1];
-	nxt[n + 1] = n + 1;
-	ROF(i, n, 1) nxt[i] = a[i] ? i : nxt[i + 1];
-	FOR(i, 1, n) s[i] = 0;
-	FOR(i, 1, n) if(a[i] && pre[i - 1]) s[i] = a[pre[i - 1]] != a[i];
-	FOR(i, 1, n) s[i] += s[i - 1];
-	FOR(i, 1, n) b[i] = a[pre[i]];
-	FOR(i, 0, n) REP(o, 5) f[i][o] = 0;
-	FOR(o, 1, 2) f[0][o] = 1;
-	FOR(i, 1, n) {
-		FOR(o, 1, 4) {
-			int l = i - o;
-			if(! check(l + 1, i, o)) continue;
-			FOR(e, 1, 4) if(o != e) f[i][o] |= f[l][e];
-			if(b[l] != o) f[i][o] |= f[l][0];
-		}
-		if(pre[i]) {
-			int o = b[i], l = i - o;
-			if(! check(l + 1, i, o)) continue;
-			FOR(e, 1, 4) if(o != e) f[i][0] |= f[l][e];
-			if(b[l] != o) f[i][0] |= f[l][0];
+	read(n, m);
+	int lim = 1 << m, U = lim - 1;
+	FOR(i, 1, n) read(A[i]);
+	FOR(i, 1, n) read(B[i]);
+	FOR(k, 1, n) {
+		s[k] = s[k - 1];
+		REP(i, m) s[k] -= (A[k][i] == 'C');
+		REP(i, m) s[k] += (B[k][i] == 'C');
+	}
+	REP(S, lim) pc[S] = popcount(S);
+	int o = 0;
+	REP(S, lim) {
+		dp[o][S] = 0;
+		int c = 0;
+		REP(i, m) {
+			if(A[1][i] == 'C') dp[o][S] -= c;
+			if(B[1][i] == 'C') dp[o][S] += c;
+			(S >> i & 1) ? c ++ : c --;
 		}
 	}
-	int r = n, o = - 1;
-	REP(i, 5) if(f[n][i]) o = i;
-	if(o == - 1) { print("No"); return; }
-	print("Yes");
-	while(r) {
-		int len = o ? o : b[r];
-		REP(_, len) ans[r --] = len;
-		o = 0;
-		FOR(i, 1, 4) if(f[r][i] && i != len) o = i;
+	FOR(k, 2, n) {
+		REP(S, lim) dp[o ^ 1][S] = - LNF;
+		REP(S, lim) {
+			int T = (S << 1) & U;
+			chmax(dp[o ^ 1][T], dp[o][S] - s[k - 1]);
+		}
+		REP(S, lim) {
+			int T = (S << 1 | 1) & U;
+			chmax(dp[o ^ 1][T], dp[o][S] + s[k - 1]);
+		}
+		o ^= 1;
+		FOR(i, 1, m - 1) {
+			REP(S, lim) dp[o ^ 1][S] = dp[o][S];
+			REP(S, lim) {
+				int l = S >> (i - 1) & 1;
+				int r = S >> i & 1;
+				if(l != r) {
+					int T = S;
+					T ^= 1 << i - 1; T ^= 1 << i;
+					chmax(dp[o ^ 1][T], dp[o][S]);
+				}
+			}
+			o ^= 1;
+			int val = (B[k][i] == 'C') - (A[k][i] == 'C');
+			REP(S, lim) {
+				int w = pc[S & ((1 << i) - 1)] * 2 - i;
+				dp[o][S] += val * w;
+			}
+		}
 	}
-	FOR(i, 1, n) cout << ans[i] << ' ';
-	cout << endl;
+	ll ans = - LNF;
+	REP(S, lim) chmax(ans, dp[o][S]);
+	print(ans);
 }
 int main() {
 	ios :: sync_with_stdio(0);
